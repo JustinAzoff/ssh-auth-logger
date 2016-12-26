@@ -22,12 +22,10 @@ func logParameters(conn ssh.ConnMetadata) logrus.Fields {
 	return logrus.Fields{
 		"user": conn.User(),
 		//"session_id":          string(conn.SessionID()),
-		"client_version":      string(conn.ClientVersion()),
-		"server_version":      string(conn.ServerVersion()),
-		"remote_addr_network": string(conn.RemoteAddr().Network()),
-		"remote_addr_address": string(conn.RemoteAddr().String()),
-		"local_addr_network":  string(conn.LocalAddr().Network()),
-		"local_addr_address":  string(conn.LocalAddr().String()),
+		"client_version": string(conn.ClientVersion()),
+		"server_version": string(conn.ServerVersion()),
+		"src":            string(conn.RemoteAddr().String()),
+		"dst":            string(conn.LocalAddr().String()),
 	}
 }
 
@@ -64,10 +62,6 @@ func init() {
 
 	viper.BindEnv("host_key", "GOOR_HOST_KEY")
 	viper.SetDefault("host_key", "./host_key")
-
-	if err := viper.ReadInConfig(); err != nil {
-		logrus.Warn("Can not load config file. defaults are loaded!")
-	}
 }
 
 func main() {
