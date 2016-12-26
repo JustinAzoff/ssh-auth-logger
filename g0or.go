@@ -74,6 +74,7 @@ func main() {
 	config := ssh.ServerConfig{
 		PasswordCallback:  authenticatePassword,
 		PublicKeyCallback: authenticateKey,
+		ServerVersion:     "SSH-2.0-OpenSSH_5.3",
 	}
 
 	keyPath := viper.GetString("host_key")
