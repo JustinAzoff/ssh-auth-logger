@@ -20,8 +20,8 @@ var errAuthenticationFailed = errors.New(":)")
 
 func logParameters(conn ssh.ConnMetadata) logrus.Fields {
 	return logrus.Fields{
-		"user":                conn.User(),
-		"session_id":          string(conn.SessionID()),
+		"user": conn.User(),
+		//"session_id":          string(conn.SessionID()),
 		"client_version":      string(conn.ClientVersion()),
 		"server_version":      string(conn.ServerVersion()),
 		"remote_addr_network": string(conn.RemoteAddr().Network()),
@@ -32,16 +32,19 @@ func logParameters(conn ssh.ConnMetadata) logrus.Fields {
 }
 
 func authenticatePassword(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
-	logrus.WithFields(logParameters(conn)).Info(fmt.Sprintf("Request with password: %s ", password))
+	logrus.WithFields(logParameters(conn)).WithFields(
+		logrus.Fields{"password": string(password)}).Info(fmt.Sprintf("Request with password"))
 	return nil, errAuthenticationFailed
 }
 
 func authenticateKey(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
-	logrus.WithFields(logParameters(conn)).Info(fmt.Sprintf("Request with keytype: %s ", key.Type()))
+	logrus.WithFields(logParameters(conn)).WithFields(
+		logrus.Fields{"keytype": key.Type(), "fingerprint": ssh.FingerprintSHA256(key)}).Info(fmt.Sprintf("Request with keyt"))
 	return nil, errAuthenticationFailed
 }
 
 func init() {
+	logrus.SetFormatter(&logrus.JSONFormatter{})
 	usr, err := user.Current()
 	if err != nil {
 		logrus.Warn(err)
