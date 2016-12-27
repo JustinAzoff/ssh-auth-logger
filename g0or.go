@@ -110,6 +110,13 @@ func makeSSHConfig(host string) ssh.ServerConfig {
 	return config
 }
 
+func handleConnection(conn net.Conn, config *ssh.ServerConfig) {
+	_, _, _, err := ssh.NewServerConn(conn, config)
+	if err == nil {
+		logrus.Panic("Successful login? why!?")
+	}
+}
+
 func main() {
 	sshConfigMap := make(map[string]ssh.ServerConfig)
 	socket, err := net.Listen("tcp", viper.GetString("port"))
@@ -129,9 +136,6 @@ func main() {
 			config = makeSSHConfig(host)
 			sshConfigMap[host] = config
 		}
-		_, _, _, err = ssh.NewServerConn(conn, &config)
-		if err == nil {
-			logrus.Panic("Successful login? why!?")
-		}
+		go handleConnection(conn, &config)
 	}
 }
