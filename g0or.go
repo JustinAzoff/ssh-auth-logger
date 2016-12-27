@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net"
 	"os"
@@ -17,6 +16,18 @@ import (
 const appName = "go0r"
 
 var errAuthenticationFailed = errors.New(":)")
+
+func connLogParameters(conn net.Conn) logrus.Fields {
+	src, spt, _ := net.SplitHostPort(conn.RemoteAddr().String())
+	dst, dpt, _ := net.SplitHostPort(conn.LocalAddr().String())
+
+	return logrus.Fields{
+		"src": src,
+		"spt": spt,
+		"dst": dst,
+		"dpt": dpt,
+	}
+}
 
 func logParameters(conn ssh.ConnMetadata) logrus.Fields {
 
@@ -37,13 +48,13 @@ func logParameters(conn ssh.ConnMetadata) logrus.Fields {
 
 func authenticatePassword(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
 	logrus.WithFields(logParameters(conn)).WithFields(
-		logrus.Fields{"password": string(password)}).Info(fmt.Sprintf("Request with password"))
+		logrus.Fields{"password": string(password)}).Info("Request with password")
 	return nil, errAuthenticationFailed
 }
 
 func authenticateKey(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
 	logrus.WithFields(logParameters(conn)).WithFields(
-		logrus.Fields{"keytype": key.Type(), "fingerprint": ssh.FingerprintSHA256(key)}).Info(fmt.Sprintf("Request with key"))
+		logrus.Fields{"keytype": key.Type(), "fingerprint": ssh.FingerprintSHA256(key)}).Info("Request with key")
 	return nil, errAuthenticationFailed
 }
 
@@ -96,6 +107,7 @@ func main() {
 		if err != nil {
 			logrus.Panic(err)
 		}
+		logrus.WithFields(connLogParameters(conn)).Info("Connection")
 		_, _, _, err = ssh.NewServerConn(conn, &config)
 		if err == nil {
 			logrus.Panic("Successful login? why!?")
