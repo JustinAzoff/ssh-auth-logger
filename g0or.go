@@ -19,13 +19,19 @@ const appName = "go0r"
 var errAuthenticationFailed = errors.New(":)")
 
 func logParameters(conn ssh.ConnMetadata) logrus.Fields {
+
+	src, spt, _ := net.SplitHostPort(conn.RemoteAddr().String())
+	dst, dpt, _ := net.SplitHostPort(conn.LocalAddr().String())
+
 	return logrus.Fields{
-		"user": conn.User(),
+		"duser": conn.User(),
 		//"session_id":          string(conn.SessionID()),
+		"src":            src,
+		"spt":            spt,
+		"dst":            dst,
+		"dpt":            dpt,
 		"client_version": string(conn.ClientVersion()),
 		"server_version": string(conn.ServerVersion()),
-		"src":            string(conn.RemoteAddr().String()),
-		"dst":            string(conn.LocalAddr().String()),
 	}
 }
 
