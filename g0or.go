@@ -1,12 +1,10 @@
 package main
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
 	"errors"
-	"io/ioutil"
 	"net"
-	"os"
-	"os/user"
-	"path/filepath"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/spf13/viper"
@@ -65,19 +63,6 @@ func authenticateKey(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions
 
 func init() {
 	logrus.SetFormatter(&logrus.JSONFormatter{})
-	usr, err := user.Current()
-	if err != nil {
-		logrus.Warn(err)
-	}
-	dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-	if err != nil {
-		logrus.Warn(err)
-	}
-
-	viper.SetConfigName("config")
-	viper.AddConfigPath("/etc/" + appName)
-	viper.AddConfigPath(usr.HomeDir + "/" + appName)
-	viper.AddConfigPath(dir + "/configs/")
 
 	viper.BindEnv("port", "GOOR_PORT")
 	viper.SetDefault("port", ":22")
@@ -86,23 +71,47 @@ func init() {
 	viper.SetDefault("host_key", "./host_key")
 }
 
-func main() {
+func getHost(addr string) string {
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	return host
+}
+
+func getKey(host string) (*rsa.PrivateKey, error) {
+	logrus.WithFields(logrus.Fields{"addr": host}).Debug("Generating host key")
+	key, err := rsa.GenerateKey(rand.Reader, 1024)
+	if err != nil {
+		return key, err
+	}
+	//keyBytes := x509.MarshalPKCS1PrivateKey(key)
+	//TODO: Save and restore keyBytes somewhere persistently
+	return key, err
+}
+
+func makeSSHConfig(host string) ssh.ServerConfig {
 	config := ssh.ServerConfig{
 		PasswordCallback:  authenticatePassword,
 		PublicKeyCallback: authenticateKey,
 		ServerVersion:     "SSH-2.0-OpenSSH_5.3",
 	}
 
-	keyPath := viper.GetString("host_key")
-	hostPrivateKey, err := ioutil.ReadFile(keyPath)
+	//keyPath := viper.GetString("host_key")
+	privateKey, err := getKey(host)
 	if err != nil {
 		logrus.Panic(err)
 	}
-	hostPrivateKeySigner, err := ssh.ParsePrivateKey(hostPrivateKey)
+	hostPrivateKeySigner, err := ssh.NewSignerFromKey(privateKey)
 	if err != nil {
 		logrus.Panic(err)
 	}
 	config.AddHostKey(hostPrivateKeySigner)
+	return config
+}
+
+func main() {
+	sshConfigMap := make(map[string]ssh.ServerConfig)
 	socket, err := net.Listen("tcp", viper.GetString("port"))
 	if err != nil {
 		panic(err)
@@ -113,6 +122,13 @@ func main() {
 			logrus.Panic(err)
 		}
 		logrus.WithFields(connLogParameters(conn)).Info("Connection")
+		host := getHost(conn.LocalAddr().String())
+
+		config, existed := sshConfigMap[host]
+		if !existed {
+			config = makeSSHConfig(host)
+			sshConfigMap[host] = config
+		}
 		_, _, _, err = ssh.NewServerConn(conn, &config)
 		if err == nil {
 			logrus.Panic("Successful login? why!?")
