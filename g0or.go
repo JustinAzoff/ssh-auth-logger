@@ -47,14 +47,19 @@ func logParameters(conn ssh.ConnMetadata) logrus.Fields {
 }
 
 func authenticatePassword(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
-	logrus.WithFields(logParameters(conn)).WithFields(
-		logrus.Fields{"password": string(password)}).Info("Request with password")
+	fields := logrus.Fields{
+		"password": string(password),
+	}
+	logrus.WithFields(logParameters(conn)).WithFields(fields).Info("Request with password")
 	return nil, errAuthenticationFailed
 }
 
 func authenticateKey(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions, error) {
-	logrus.WithFields(logParameters(conn)).WithFields(
-		logrus.Fields{"keytype": key.Type(), "fingerprint": ssh.FingerprintSHA256(key)}).Info("Request with key")
+	fields := logrus.Fields{
+		"keytype":     key.Type(),
+		"fingerprint": ssh.FingerprintSHA256(key),
+	}
+	logrus.WithFields(logParameters(conn)).WithFields(fields).Info("Request with key")
 	return nil, errAuthenticationFailed
 }
 
