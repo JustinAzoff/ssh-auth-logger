@@ -7,3 +7,6 @@ build_linux:
 
 image: build_linux
 	docker build -t justinazoff/ssh-auth-logger .
+
+push_image: image
+	docker push justinazoff/ssh-auth-logger
