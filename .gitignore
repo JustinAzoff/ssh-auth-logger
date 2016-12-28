@@ -1,5 +1,2 @@
-host_key
-*.pub
-*\#*
-go0r
-go0r_linux_amd64
+ssh-auth-logger
+ssh-auth-logger_*
