@@ -69,13 +69,8 @@ func authenticateKey(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions
 
 func init() {
 	logrus.SetFormatter(&logrus.JSONFormatter{})
-
-	viper.BindEnv("port", "GOOR_PORT")
+	viper.BindEnv("port", "SSH_PORT")
 	viper.SetDefault("port", ":22")
-
-	viper.BindEnv("host_key", "GOOR_HOST_KEY")
-	viper.SetDefault("host_key", "./host_key")
-
 }
 
 func getHost(addr string) string {
