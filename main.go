@@ -15,6 +15,12 @@ const appName = "go0r"
 
 var errAuthenticationFailed = errors.New(":)")
 
+var commonFields = logrus.Fields{
+	"destinationServicename": "sshd",
+	"product":                "ssh-auth-logger",
+}
+var logger = logrus.WithFields(commonFields)
+
 func connLogParameters(conn net.Conn) logrus.Fields {
 	src, spt, _ := net.SplitHostPort(conn.RemoteAddr().String())
 	dst, dpt, _ := net.SplitHostPort(conn.LocalAddr().String())
@@ -48,7 +54,7 @@ func authenticatePassword(conn ssh.ConnMetadata, password []byte) (*ssh.Permissi
 	fields := logrus.Fields{
 		"password": string(password),
 	}
-	logrus.WithFields(logParameters(conn)).WithFields(fields).Info("Request with password")
+	logger.WithFields(logParameters(conn)).WithFields(fields).Info("Request with password")
 	return nil, errAuthenticationFailed
 }
 
@@ -57,7 +63,7 @@ func authenticateKey(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions
 		"keytype":     key.Type(),
 		"fingerprint": ssh.FingerprintSHA256(key),
 	}
-	logrus.WithFields(logParameters(conn)).WithFields(fields).Info("Request with key")
+	logger.WithFields(logParameters(conn)).WithFields(fields).Info("Request with key")
 	return nil, errAuthenticationFailed
 }
 
@@ -69,6 +75,7 @@ func init() {
 
 	viper.BindEnv("host_key", "GOOR_HOST_KEY")
 	viper.SetDefault("host_key", "./host_key")
+
 }
 
 func getHost(addr string) string {
@@ -128,7 +135,7 @@ func main() {
 		if err != nil {
 			logrus.Panic(err)
 		}
-		logrus.WithFields(connLogParameters(conn)).Info("Connection")
+		logger.WithFields(connLogParameters(conn)).Info("Connection")
 		host := getHost(conn.LocalAddr().String())
 
 		config, existed := sshConfigMap[host]
