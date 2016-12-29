@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"errors"
+	"log"
 	"net"
 
 	"github.com/Sirupsen/logrus"
@@ -129,7 +130,7 @@ func main() {
 	for {
 		conn, err := socket.Accept()
 		if err != nil {
-			logrus.Panic(err)
+			log.Panic(err)
 		}
 		logger.WithFields(connLogParameters(conn)).Info("Connection")
 		host := getHost(conn.LocalAddr().String())
