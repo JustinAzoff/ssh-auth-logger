@@ -94,9 +94,10 @@ func getKey(host string) (*rsa.PrivateKey, error) {
 
 func makeSSHConfig(host string) ssh.ServerConfig {
 	config := ssh.ServerConfig{
-		PasswordCallback:  authenticatePassword,
-		PublicKeyCallback: authenticateKey,
-		ServerVersion:     "SSH-2.0-OpenSSH_5.3",
+		PasswordCallback:          authenticatePassword,
+		PublicKeyCallback:         authenticateKey,
+		ServerVersion:             "SSH-2.0-OpenSSH_5.3",
+		MaxAuthenticationAttempts: 10,
 	}
 
 	//keyPath := viper.GetString("host_key")

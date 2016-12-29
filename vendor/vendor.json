@@ -1,0 +1,31 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "dwOedwBJ1EIK9+S3t108Bx054Y8=",
+			"path": "golang.org/x/crypto/curve25519",
+			"revision": "f6b343c37ca80bfa8ea539da67a0b621f84fab1d",
+			"revisionTime": "2016-12-21T04:54:10Z"
+		},
+		{
+			"checksumSHA1": "wGb//LjBPNxYHqk+dcLo7BjPXK8=",
+			"path": "golang.org/x/crypto/ed25519",
+			"revision": "f6b343c37ca80bfa8ea539da67a0b621f84fab1d",
+			"revisionTime": "2016-12-21T04:54:10Z"
+		},
+		{
+			"checksumSHA1": "LXFcVx8I587SnWmKycSDEq9yvK8=",
+			"path": "golang.org/x/crypto/ed25519/internal/edwards25519",
+			"revision": "f6b343c37ca80bfa8ea539da67a0b621f84fab1d",
+			"revisionTime": "2016-12-21T04:54:10Z"
+		},
+		{
+			"checksumSHA1": "RnJfaFwKpC0h06J2MZ8UZX2eohc=",
+			"path": "golang.org/x/crypto/ssh",
+			"revision": "f6b343c37ca80bfa8ea539da67a0b621f84fab1d",
+			"revisionTime": "2016-12-21T04:54:10Z"
+		}
+	],
+	"rootPath": "github.com/JustinAzoff/ssh-auth-logger"
+}
