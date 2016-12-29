@@ -21,10 +21,11 @@
 			"revisionTime": "2016-12-21T04:54:10Z"
 		},
 		{
-			"checksumSHA1": "RnJfaFwKpC0h06J2MZ8UZX2eohc=",
+			"checksumSHA1": "n8IvI13iPH2lq34r1vB4fXorW34=",
+			"origin": "github.com/JustinAzoff/crypto/ssh",
 			"path": "golang.org/x/crypto/ssh",
-			"revision": "f6b343c37ca80bfa8ea539da67a0b621f84fab1d",
-			"revisionTime": "2016-12-21T04:54:10Z"
+			"revision": "0f2f35c8d879e3d1eda3390b38ba8405a86e305c",
+			"revisionTime": "2016-12-29T01:35:14Z"
 		}
 	],
 	"rootPath": "github.com/JustinAzoff/ssh-auth-logger"
