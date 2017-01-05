@@ -7,7 +7,10 @@ build:
 build_linux:
 	gox --osarch linux/amd64
 
-image: build_linux
+check_docker:
+	@docker ps > /dev/null
+
+image: check_docker build_linux
 	docker build -t justinazoff/ssh-auth-logger .
 
 push_image: image
