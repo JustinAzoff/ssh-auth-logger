@@ -102,8 +102,6 @@ func getKey(host string) (*rsa.PrivateKey, error) {
 	if err != nil {
 		return key, err
 	}
-	//keyBytes := x509.MarshalPKCS1PrivateKey(key)
-	//TODO: Save and restore keyBytes somewhere persistently
 	return key, err
 }
 
