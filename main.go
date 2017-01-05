@@ -15,13 +15,13 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
-const appName = "go0r"
+const appName = "ssh-auth-logger"
 
 var errAuthenticationFailed = errors.New(":)")
 
 var commonFields = logrus.Fields{
 	"destinationServicename": "sshd",
-	"product":                "ssh-auth-logger",
+	"product":                appName,
 }
 var logger = logrus.WithFields(commonFields)
 

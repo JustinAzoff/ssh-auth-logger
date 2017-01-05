@@ -1,7 +1,7 @@
 ## How to use it
 
     go get -u -v github.com/JustinAzoff/ssh-auth-logger
-    export SSH_PORT=:2222
+    export SSHD_BIND=:2222
     $GOPATH/bin/ssh-auth-logger
 
 ## Note
