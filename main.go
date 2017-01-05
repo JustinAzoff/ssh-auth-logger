@@ -68,12 +68,6 @@ func authenticateKey(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions
 	return nil, errAuthenticationFailed
 }
 
-func init() {
-	logrus.SetFormatter(&logrus.JSONFormatter{})
-	viper.BindEnv("port", "SSH_PORT")
-	viper.SetDefault("port", ":22")
-}
-
 func getHost(addr string) string {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
@@ -119,6 +113,12 @@ func handleConnection(conn net.Conn, config *ssh.ServerConfig) {
 	if err == nil {
 		logrus.Panic("Successful login? why!?")
 	}
+}
+
+func init() {
+	logrus.SetFormatter(&logrus.JSONFormatter{})
+	viper.BindEnv("port", "SSH_PORT")
+	viper.SetDefault("port", ":22")
 }
 
 func main() {
