@@ -1,10 +1,13 @@
 package main
 
 import (
-	"crypto/rand"
+	"crypto/hmac"
 	"crypto/rsa"
+	"crypto/sha256"
+	"encoding/binary"
 	"errors"
 	"log"
+	"math/rand"
 	"net"
 
 	"github.com/Sirupsen/logrus"
@@ -21,6 +24,11 @@ var commonFields = logrus.Fields{
 	"product":                "ssh-auth-logger",
 }
 var logger = logrus.WithFields(commonFields)
+
+var (
+	sshd_bind    string
+	sshd_key_key string
+)
 
 func connLogParameters(conn net.Conn) logrus.Fields {
 	src, spt, _ := net.SplitHostPort(conn.RemoteAddr().String())
@@ -68,6 +76,14 @@ func authenticateKey(conn ssh.ConnMetadata, key ssh.PublicKey) (*ssh.Permissions
 	return nil, errAuthenticationFailed
 }
 
+func HashToInt64(message, key []byte) int64 {
+	mac := hmac.New(sha256.New, key)
+	mac.Write(message)
+	hash := mac.Sum(nil)
+	i := binary.LittleEndian.Uint64(hash[:8])
+	return int64(i)
+}
+
 func getHost(addr string) string {
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
@@ -78,7 +94,11 @@ func getHost(addr string) string {
 
 func getKey(host string) (*rsa.PrivateKey, error) {
 	logrus.WithFields(logrus.Fields{"addr": host}).Debug("Generating host key")
-	key, err := rsa.GenerateKey(rand.Reader, 1024)
+
+	randomSeed := HashToInt64([]byte(host), []byte(sshd_key_key))
+	randomSource := rand.New(rand.NewSource(randomSeed))
+
+	key, err := rsa.GenerateKey(randomSource, 1024)
 	if err != nil {
 		return key, err
 	}
@@ -117,13 +137,19 @@ func handleConnection(conn net.Conn, config *ssh.ServerConfig) {
 
 func init() {
 	logrus.SetFormatter(&logrus.JSONFormatter{})
-	viper.BindEnv("port", "SSH_PORT")
-	viper.SetDefault("port", ":22")
+	viper.BindEnv("sshd_bind", "SSHD_BIND")
+	viper.SetDefault("sshd_bind", ":22")
+
+	viper.BindEnv("sshd_key_key", "SSHD_KEY_KEY")
+	viper.SetDefault("sshd_key_key", "Take me to your leader")
+
+	sshd_bind = viper.GetString("sshd_bind")
+	sshd_key_key = viper.GetString("sshd_key_key")
 }
 
 func main() {
 	sshConfigMap := make(map[string]ssh.ServerConfig)
-	socket, err := net.Listen("tcp", viper.GetString("port"))
+	socket, err := net.Listen("tcp", sshd_bind)
 	if err != nil {
 		panic(err)
 	}
