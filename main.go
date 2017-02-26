@@ -110,7 +110,7 @@ func makeSSHConfig(host string) ssh.ServerConfig {
 		PasswordCallback:          authenticatePassword,
 		PublicKeyCallback:         authenticateKey,
 		ServerVersion:             "SSH-2.0-OpenSSH_5.3",
-		MaxAuthenticationAttempts: 10,
+		MaxAuthenticationAttempts: 3,
 	}
 
 	//keyPath := viper.GetString("host_key")
