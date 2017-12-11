@@ -1,6 +1,4 @@
-all: sync build
-sync:
-	govendor sync
+all: build
 build:
 	go build
 
