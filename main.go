@@ -9,9 +9,9 @@ import (
 	"log"
 	"math/rand"
 	"net"
+	"os"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/spf13/viper"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -133,16 +133,21 @@ func handleConnection(conn net.Conn, config *ssh.ServerConfig) {
 	}
 }
 
+//getEnvWithDefault returns the environment value for key
+//returning fallback instead if it is missing or blank
+func getEnvWithDefault(key, fallback string) string {
+	value := os.Getenv(key)
+	if value == "" {
+		return fallback
+	}
+	return value
+}
+
 func init() {
 	logrus.SetFormatter(&logrus.JSONFormatter{})
-	viper.BindEnv("sshd_bind", "SSHD_BIND")
-	viper.SetDefault("sshd_bind", ":22")
 
-	viper.BindEnv("sshd_key_key", "SSHD_KEY_KEY")
-	viper.SetDefault("sshd_key_key", "Take me to your leader")
-
-	sshd_bind = viper.GetString("sshd_bind")
-	sshd_key_key = viper.GetString("sshd_key_key")
+	sshd_bind = getEnvWithDefault("SSHD_BIND", ":22")
+	sshd_key_key = getEnvWithDefault("SSHD_KEY_KEY", "Take me to your leader")
 }
 
 func main() {
