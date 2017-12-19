@@ -105,15 +105,28 @@ func getKey(host string) (*rsa.PrivateKey, error) {
 	return key, err
 }
 
+var serverVersions = []string{
+	"SSH-2.0-OpenSSH_6.0p1",
+	"SSH-2.0-OpenSSH_5.3",
+}
+
+func getServerVersion(host string) string {
+	randomSeed := HashToInt64([]byte(host), []byte(sshd_key_key))
+	if randomSeed < 0 {
+		randomSeed = -randomSeed
+	}
+	n := int(randomSeed) % len(serverVersions)
+	return serverVersions[n]
+}
+
 func makeSSHConfig(host string) ssh.ServerConfig {
 	config := ssh.ServerConfig{
 		PasswordCallback:  authenticatePassword,
 		PublicKeyCallback: authenticateKey,
-		ServerVersion:     "SSH-2.0-OpenSSH_5.3",
+		ServerVersion:     getServerVersion(host),
 		MaxAuthTries:      3,
 	}
 
-	//keyPath := viper.GetString("host_key")
 	privateKey, err := getKey(host)
 	if err != nil {
 		logrus.Panic(err)
