@@ -1,0 +1,18 @@
+[hpfeeds]
+enabled = False
+server =
+port = 10000
+ident =
+secret =
+tags =
+
+
+[stingar]
+enabled = False
+fluent_host =
+fluent_port = 24284
+app =
+hostname =
+identifier =
+tags =
+asn =

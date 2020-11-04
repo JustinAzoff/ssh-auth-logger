@@ -1,0 +1,12 @@
+version: '3'
+services:
+  ssh-auth-logger:
+    image: stingar/ssh-auth-logger:master
+    volumes:
+      - configs:/etc/ssh-auth-logger
+    ports:
+      - "2222:2222"
+    env_file:
+      - ssh-auth-logger.env
+volumes:
+  configs:

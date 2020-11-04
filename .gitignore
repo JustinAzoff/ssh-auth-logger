@@ -1,2 +1,4 @@
 ssh-auth-logger
 ssh-auth-logger_*
+docker-compose-devel.yml
+.development.env
