@@ -5,7 +5,7 @@ port = 10000
 ident =
 secret =
 tags =
-
+reported_ip = UNSET_REPORTED_IP
 
 [stingar]
 enabled = False

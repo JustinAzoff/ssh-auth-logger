@@ -41,6 +41,7 @@ class HpfeedsOutput:
         self.ident = config.get('hpfeeds', 'ident')
         self.secret = config.get('hpfeeds', 'secret')
         self.tags = config.get('hpfeeds', 'tags')
+        self.reported_ip = config.get('hpfeeds', 'reported_ip')
         self.client = hpfeeds.new(self.server, self.port, self.ident, self.secret)
 
     def write(self, data):
@@ -71,6 +72,8 @@ def main():
         logger.debug('Awaiting input line')
         message = json.loads(line.rstrip())
         logger.debug('Got message of: {}'.format(json.dumps(message)))
+        if hpf.reported_ip and hpf.reported_ip != 'UNSET_REPORTED_IP':
+            message['dst'] = hpf.reported_ip
         hpf.write(message)
         logger.info('Processed input line.')
 

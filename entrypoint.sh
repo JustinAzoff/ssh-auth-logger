@@ -25,7 +25,7 @@ main () {
       -d "${DEPLOY_KEY}" \
       -u "${CHN_SERVER}" -k \
       -o "${SSHAUTHLOGGER_JSON}" \
-      -i "${IP_ADDRESS}"
+      -i "${REPORTED_IP}"
       local uid="$(cat ${SSHAUTHLOGGER_JSON} | jq -r .identifier)"
       local secret="$(cat ${SSHAUTHLOGGER_JSON} | jq -r .secret)"
 
@@ -38,6 +38,7 @@ main () {
       export SSHAUTHLOGGER_hpfeeds__ident="${uid}"
       export SSHAUTHLOGGER_hpfeeds__secret="${secret}"
       export SSHAUTHLOGGER_hpfeeds__tags="${TAGS}"
+      export SSHAUTHLOGGER_hpfeeds__reported_ip="${REPORTED_IP}"
 
       # Write out custom conpot config
       containedenv-config-writer.py \
