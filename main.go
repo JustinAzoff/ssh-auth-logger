@@ -11,7 +11,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -106,8 +106,7 @@ func getKey(host string) (*rsa.PrivateKey, error) {
 }
 
 var serverVersions = []string{
-	"SSH-2.0-OpenSSH_6.0p1",
-	"SSH-2.0-OpenSSH_5.3",
+	"SSH-2.0-libssh-0.6.1",
 }
 
 func getServerVersion(host string) string {
