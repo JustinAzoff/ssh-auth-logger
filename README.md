@@ -39,7 +39,7 @@ This is normally logged on one line
 
 ## How to use it
 
-    go get -u -v github.com/JustinAzoff/ssh-auth-logger
+    go install github.com/JustinAzoff/ssh-auth-logger@latest
     export SSHD_BIND=:2222
     ~/go/bin/ssh-auth-logger
 
