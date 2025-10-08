@@ -11,13 +11,17 @@ LABEL maintainer="Justin Azoff <justin.azoff@gmail.com>" \
 ENV USER=nobody
 ENV SSHD_BIND=:2222
 
-RUN go install github.com/JustinAzoff/ssh-auth-logger@latest && \
+WORKDIR /app
+
+COPY . .
+
+RUN go install . && \
     touch /var/log/ssh-auth-logger.log && \
-    chown nobody /var/log/ssh-auth-logger.log && \ 
+    chown $USER /var/log/ssh-auth-logger.log && \
     chmod 644 /var/log/ssh-auth-logger.log
 
 USER $USER
 
 EXPOSE 2222
 
-CMD /go/bin/ssh-auth-logger 2>&1 | tee -a /var/log/ssh-auth-logger.log
+CMD test -f /var/log/ssh-auth-logger.log || { echo 'Creating log file...' && touch /var/log/ssh-auth-logger.log ; }; /go/bin/ssh-auth-logger 2>&1 | tee -a /var/log/ssh-auth-logger.log

@@ -67,11 +67,12 @@ services:
     image: justinazoff/ssh-auth-logger:latest
     container_name: ssh-auth-logger
     environment:
-      # Port to listen
-      - SSHD_BIND=:2222
+      - SSHD_RATE=120    # bits per second, emulate very slow connection
+      - SSHD_BIND=:2222  # Port and interface to listen
+      - TZ=Europe/Berlin # You can set Time Zone to see logs with your local time
     volumes:
       # Mount log file if needed
-      - /var/docker/ssh-auth-logger/ssh-auth.log:/var/log/ssh-auth-logger.log
+      - /var/docker/ssh-auth-logger/log:/var/log
     ports:
      - 2222:2222 # SSH Auth Logger
     restart: unless-stopped
@@ -81,7 +82,7 @@ services:
           cpus: '0.50'
           memory: 100M
     healthcheck:
-      test: wget -v localhost:$SSHD_BIND --no-verbose --tries=1 --spider || exit 1
+      test: wget -v localhost$SSHD_BIND --no-verbose --tries=1 --spider || exit 1
       interval: 5m00s
       timeout: 5s
       retries: 2

@@ -10,6 +10,8 @@ import (
 	"math/rand"
 	"net"
 	"os"
+	"time"
+	"strconv"
 
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
@@ -28,7 +30,88 @@ var logger = logrus.WithFields(commonFields)
 var (
 	sshd_bind    string
 	sshd_key_key string
+	rate         int
 )
+
+// rateLimitedConn is a wrapper around net.Conn that limits the bandwidth.
+type rateLimitedConn struct {
+	net.Conn
+	rate       int // bytes per second
+	bufferSize int // buffer size for token bucket algorithm
+	tokens     int // current tokens
+	lastUpdate time.Time
+}
+
+// newRateLimitedConn returns a new rateLimitedConn.
+func newRateLimitedConn(conn net.Conn, rate int) *rateLimitedConn {
+	return &rateLimitedConn{
+		Conn:       conn,
+		rate:       rate,
+		bufferSize: rate * 2, // Allow for bursts up to twice the rate
+		tokens:     rate,
+		lastUpdate: time.Now(),
+	}
+}
+
+// Read implements the Read method of net.Conn.
+func (r *rateLimitedConn) Read(p []byte) (n int, err error) {
+	n, err = r.Conn.Read(p)
+	if err != nil {
+		return
+	}
+
+	// Limit the read based on the rate.
+	r.limit(n)
+	return
+}
+
+// Write implements the Write method of net.Conn.
+func (r *rateLimitedConn) Write(p []byte) (n int, err error) {
+	n, err = r.limitWrite(p)
+	return
+}
+
+func (r *rateLimitedConn) limitWrite(p []byte) (int, error) {
+	var totalWritten int
+	for len(p) > 0 {
+		// Calculate available tokens.
+		now := time.Now()
+		elapsed := now.Sub(r.lastUpdate).Seconds()
+		r.tokens += int(elapsed * float64(r.rate))
+		if r.tokens > r.bufferSize {
+			r.tokens = r.bufferSize
+		}
+		r.lastUpdate = now
+
+		// Determine how many bytes we can write.
+		availableTokens := r.tokens
+		if availableTokens > len(p) {
+			availableTokens = len(p)
+		}
+
+		// Write data.
+		n, err := r.Conn.Write(p[:availableTokens])
+		totalWritten += n
+		r.tokens -= n
+		if err != nil {
+			return totalWritten, err
+		}
+
+		// Adjust the buffer.
+		p = p[n:]
+
+		// If there are still bytes to write, sleep to accumulate tokens.
+		if len(p) > 0 {
+			time.Sleep(time.Duration(availableTokens) * time.Second / time.Duration(r.rate))
+		}
+	}
+	return totalWritten, nil
+}
+
+func (r *rateLimitedConn) limit(n int) {
+	// Simple sleep-based rate limiting for read.
+	time.Sleep(time.Duration(n) * time.Second / time.Duration(r.rate))
+}
 
 func connLogParameters(conn net.Conn) logrus.Fields {
 	src, spt, _ := net.SplitHostPort(conn.RemoteAddr().String())
@@ -160,6 +243,19 @@ func init() {
 
 	sshd_bind = getEnvWithDefault("SSHD_BIND", ":22")
 	sshd_key_key = getEnvWithDefault("SSHD_KEY_KEY", "Take me to your leader")
+	rateStr := getEnvWithDefault("SSHD_RATE", "120") // default rate is 120 bytes per second very slow...
+	var err error
+	rate, err = strconv.Atoi(rateStr)
+	if err != nil {
+		logrus.Fatal("Invalid RATE environment variable")
+	}
+
+	// Show Configuration on Startup
+	logrus.WithFields(logrus.Fields{
+		"SSHD_BIND":    sshd_bind,
+		"SSHD_KEY_KEY": sshd_key_key,
+		"SSHD_RATE":    rate,
+	}).Info("Starting SSH Auth Logger")
 }
 
 func main() {
@@ -174,13 +270,15 @@ func main() {
 			log.Panic(err)
 		}
 		logger.WithFields(connLogParameters(conn)).Info("Connection")
-		host := getHost(conn.LocalAddr().String())
 
+		limitedConn := newRateLimitedConn(conn, rate)
+
+		host := getHost(conn.LocalAddr().String())
 		config, existed := sshConfigMap[host]
 		if !existed {
 			config = makeSSHConfig(host)
 			sshConfigMap[host] = config
 		}
-		go handleConnection(conn, &config)
+		go handleConnection(limitedConn, &config)
 	}
 }
