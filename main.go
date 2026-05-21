@@ -7,19 +7,25 @@ import (
 	"crypto/sha256"
 	"encoding/binary"
 	"errors"
-	"log"
 	"math/rand"
 	"net"
 	"os"
 	"strconv"
 	"time"
 	"strings"
+	"encoding/base64"
 
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 )
 
 const appName = "ssh-auth-logger"
+
+var telnetBind string
+
+var telnetLogClearPassword bool
+
+var telnetRate int
 
 var errAuthenticationFailed = errors.New(":)")
 
@@ -61,6 +67,110 @@ type serverProfile struct {
 	ServerVersion string
 	LoginBanner   string
 	HostKeyType   string // "rsa" or "ed25519"
+}
+
+// Telnet handler
+func handleTelnetConnection(conn net.Conn) {
+	defer conn.Close()
+
+	logger.WithFields(connLogParameters(conn)).
+		WithField("destinationServicename", "telnetd").
+		Info("Telnet connection")
+
+	limitedConn := newRateLimitedConn(conn, telnetRate)
+
+
+	// Determine profile key (same logic as SSH)
+	var profileKey string
+	if profileScope == "remote_ip" {
+		host, _, err := net.SplitHostPort(conn.RemoteAddr().String())
+		if err != nil {
+			host = conn.RemoteAddr().String()
+		}
+		profileKey = host
+	} else {
+		profileKey = getHost(conn.LocalAddr().String())
+	}
+
+	profile := getServerProfile(profileKey)
+
+	// Start from SSH login banner
+	banner := profile.LoginBanner
+
+	// Replace protocol-specific words for Telnet realism
+	banner = strings.ReplaceAll(banner, "SSH", "Telnet")
+	banner = strings.ReplaceAll(banner, "ssh", "telnet")
+
+	// Convert LF to CRLF for telnet
+	banner = strings.ReplaceAll(banner, "\n", "\r\n")
+
+	if banner != "" {
+		limitedConn.Write([]byte(banner))
+	}
+
+	limitedConn.Write([]byte("login: "))
+
+	username, _ := readLine(limitedConn)
+
+	limitedConn.Write([]byte("Password: "))
+	password, _ := readLine(limitedConn)
+
+	var loggedPassword any = password
+	// This will show the password in cleartext if telnetLogClearPassword is true, otherwise it will log the base64 encoded if telnetLogClearPassword is false
+	if telnetLogClearPassword {
+		loggedPassword = string(password)
+	} else {
+		loggedPassword = base64.StdEncoding.EncodeToString([]byte(password))
+	}
+
+	fields := connLogParameters(conn)
+	fields["duser"] = username
+	fields["password"] = loggedPassword
+	fields["protocol"] = "telnet"
+
+	logger.WithFields(fields).
+		WithField("destinationServicename", "telnetd").
+		Info("Telnet login attempt")
+
+	time.Sleep(2 * time.Second)
+	limitedConn.Write([]byte("\r\nLogin incorrect\r\n"))
+}
+
+// Simple Telnet Parser
+func readLine(conn net.Conn) (string, error) {
+	buf := make([]byte, 1)
+	var result []byte
+
+	for {
+		n, err := conn.Read(buf)
+		if err != nil || n == 0 {
+			return "", err
+		}
+
+		b := buf[0]
+
+		// TELNET IAC handling (skip command sequences)
+		if b == 255 { // IAC
+			// read next two bytes (command + option)
+			conn.Read(buf)
+			conn.Read(buf)
+			continue
+		}
+
+		// Ignore CR
+		if buf[0] == '\r' {
+			continue
+		}
+
+		// End on LF
+		if buf[0] == '\n' {
+			break
+		}
+
+		result = append(result, buf[0])
+	}
+
+	return strings.TrimSpace(string(result)), nil
 }
 
 // newRateLimitedConn returns a new rateLimitedConn.
@@ -221,6 +331,11 @@ var serverProfiles = []serverProfile{
 		HostKeyType:   "ed25519",
 	},
 	{
+		ServerVersion: "SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.14",
+		LoginBanner:   "Ubuntu 24.04.6 LTS\n\nUnauthorized access prohibited.\n",
+		HostKeyType:   "ed25519",
+	},
+	{
 		ServerVersion: "SSH-2.0-OpenSSH_8.4",
 		LoginBanner:   "Debian GNU/Linux 11\n\nAuthorized users only.\n",
 		HostKeyType:   "ed25519",
@@ -277,6 +392,7 @@ func makeSSHConfig(conn net.Conn) ssh.ServerConfig {
 			time.Sleep(base + jitter)
 
 			var loggedPassword any = password
+			// This will convert bytes to string if logClearPassword is true, otherwise it will log the byte slice (which will be base64 encoded if LogClearPassword is false)
 			if logClearPassword {
 				loggedPassword = string(password)
 			}
@@ -397,13 +513,20 @@ func (f *FilteredJSONFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 func init() {
 	logrus.SetFormatter(&logrus.JSONFormatter{})
 
+	telnetBind = getEnvWithDefault("TELNET_BIND", ":23")
+
 	sshd_bind = getEnvWithDefault("SSHD_BIND", ":22")
 	sshd_key_key = getEnvWithDefault("SSHD_KEY_KEY", "Take me to your leader")
-	rateStr := getEnvWithDefault("SSHD_RATE", "120") // default rate is 120 bytes per second very slow...
+	rateStr := getEnvWithDefault("SSHD_RATE", "320") // default rate is 320 bytes per second very slow...
 	var err error
 	rate, err = strconv.Atoi(rateStr)
 	if err != nil {
 		logrus.Fatal("Invalid SSHD_RATE environment variable")
+	}
+	telnetRateStr := getEnvWithDefault("TELNET_RATE", "20") // Could be slower than SSH
+	telnetRate, err = strconv.Atoi(telnetRateStr)
+	if err != nil || telnetRate <= 0 {
+		logrus.Fatal("Invalid TELNET_RATE environment variable")
 	}
 	maxAuthTriesStr := getEnvWithDefault("SSHD_MAX_AUTH_TRIES", "6") // default amount of tries is 6-10.
 	maxAuthTries, err = strconv.Atoi(maxAuthTriesStr)
@@ -424,20 +547,25 @@ func init() {
 	sendBanner = sendBannerStr == "1" || sendBannerStr == "true" || sendBannerStr == "yes"
 	logClearPasswordStr := getEnvWithDefault("SSHD_LOG_CLEAR_PASSWORD", "true")
 	logClearPassword = logClearPasswordStr == "1" || logClearPasswordStr == "true" || logClearPasswordStr == "yes"
+	telnetLogClearPasswordStr := getEnvWithDefault("TELNET_LOG_CLEAR_PASSWORD", "true")
+	telnetLogClearPassword = telnetLogClearPasswordStr == "1" || telnetLogClearPasswordStr == "true" || telnetLogClearPasswordStr == "yes"
 	// Comma-separated list of allowed fields, "" means all, " " means none
 	logsEnv := getEnvWithDefault("SSHD_LOGS_FILTER", "")
 
 	// Show Configuration on Startup
 	logrus.WithFields(logrus.Fields{
-		"SSHD_BIND":               sshd_bind,
-		"SSHD_KEY_KEY":            sshd_key_key,
-		"SSHD_RATE":               rate,
-		"SSHD_MAX_AUTH_TRIES":     maxAuthTries,
-		"SSHD_RSA_BITS":           rsaBitsStr,
-		"SSHD_PROFILE_SCOPE":      profileScope,
-		"SSHD_SEND_BANNER":        sendBanner,
-		"SSHD_LOG_CLEAR_PASSWORD": logClearPassword,
-		"SSHD_LOGS_FILTER":	       logsEnv,
+		"SSHD_BIND":                 sshd_bind,
+		"SSHD_KEY_KEY":              sshd_key_key,
+		"SSHD_RATE":                 rate,
+		"SSHD_MAX_AUTH_TRIES":       maxAuthTries,
+		"SSHD_RSA_BITS":             rsaBitsStr,
+		"SSHD_PROFILE_SCOPE":        profileScope,
+		"SSHD_SEND_BANNER":          sendBanner,
+		"SSHD_LOG_CLEAR_PASSWORD":   logClearPassword,
+		"SSHD_LOGS_FILTER":	         logsEnv,
+		"TELNET_BIND":               telnetBind,
+		"TELNET_LOG_CLEAR_PASSWORD": telnetLogClearPassword,
+		"TELNET_RATE":               telnetRate,
 	}).Info("Starting SSH Auth Logger")
 
 	// Configure allowed log fields from environment variable
@@ -461,22 +589,45 @@ func init() {
 }
 
 func main() {
-	socket, err := net.Listen("tcp", sshd_bind)
-	if err != nil {
-		panic(err)
-	}
-	for {
-		conn, err := socket.Accept()
+	// SSH listener
+	go func() {
+		socket, err := net.Listen("tcp", sshd_bind)
 		if err != nil {
-			log.Panic(err)
+			panic(err)
 		}
+		// logrus.Infof("SSH listening on %s", sshd_bind)
+		for {
+			conn, err := socket.Accept()
+			if err != nil {
+				logrus.WithError(err).Warn("SSH listener accept failed")
+				continue
+			}
 
-		logger.WithFields(connLogParameters(conn)).Info("Connection")
+			logger.WithFields(connLogParameters(conn)).Info("SSH connection")
 
-		limitedConn := newRateLimitedConn(conn, rate)
+			limitedConn := newRateLimitedConn(conn, rate)
+			config := makeSSHConfig(conn)
+			go handleConnection(limitedConn, &config)
+		}
+	}()
 
-		config := makeSSHConfig(conn) // NEW CONFIG PER CONNECTION
-		go handleConnection(limitedConn, &config)
-	}
+	// Telnet listener
+	go func() {
+		telnetSocket, err := net.Listen("tcp", telnetBind)
+		if err != nil {
+			panic(err)
+		}
+		// logrus.Infof("Telnet listening on %s", telnetBind)
+		for {
+			conn, err := telnetSocket.Accept()
+			if err != nil {
+				logrus.WithError(err).Warn("Telnet listener accept failed")
+				continue
+			}
+			go handleTelnetConnection(conn)
+		}
+	}()
 
+	// Block forever
+	select {}
 }

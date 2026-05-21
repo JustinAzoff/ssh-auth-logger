@@ -72,9 +72,11 @@ services:
     image: justinazoff/ssh-auth-logger:latest
     container_name: ssh-auth-logger
     environment:
+      - TZ=Europe/Berlin                      # You can set Time Zone to see logs with your local time
       # Following are default values
-#      - SSHD_RATE=120                         # bits per second, emulate very slow connection
-#      - SSHD_BIND=:22                         # Port and interface to listen
+      # SSHD Part
+#      - SSHD_RATE=320                         # bits per second, emulate very slow connection
+#      - SSHD_BIND=:2222                       # Port and interface sshd to listen
 #      - SSHD_KEY_KEY="Take me to your leader" # It's a secret key that is used to generate a deterministic hash value for a given host IP address
 #      - SSHD_MAX_AUTH_TRIES=6                 # The minimum number of authentication attempts allowed
 #      - SSHD_RSA_BITS=3072                    # If you use 'rsa' you can also set RSA key size, 2048, 3072, 4096 (very rare)
@@ -82,12 +84,16 @@ services:
 #      - SSHD_SEND_BANNER=false                # Send SSH Login Banner before Password prompt
 #      - SSHD_LOG_CLEAR_PASSWORD=true          # Log Passwords as clear text or Base64 coded
 #      - SSHD_LOGS_FILTER=""                   # Comma-separated list of allowed fields. 'msg', 'level' and 'time' can't be removed. Following combinations are possible: "duser,src,spt,dst,dpt,client_version,server_version,password,keytype,fingerprint,server_key_type,destinationServicename,product"
-      - TZ=Europe/Berlin                      # You can set Time Zone to see logs with your local time
+      # Telnet Part
+#      - TELNET_BIND=:2323                     # Port and interface telnetd to listen
+#      - TELNET_LOG_CLEAR_PASSWORD=true        # Log Passwords as clear text or Base64 coded
+#      - TELNET_RATE=20                        # bits per second, emulate very slow connection
     volumes:
       # Mount log file if needed
       - /var/docker/ssh-auth-logger/log:/var/log
     ports:
-     - 2222:22 # SSH Auth Logger
+     - 2222:2222 # SSH Auth Logger
+     - 2323:2323 # SSH Auth Logger Telnet
     networks:
       # Use isolated docker network, so that other containers will be not reachable from it
       - isolated_net
