@@ -1,0 +1,51 @@
+# This workflow uses actions that are not certified by GitHub.
+# They are provided by a third-party and are governed by
+# separate terms of service, privacy policy, and support
+# documentation.
+
+name: trivy
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: ["master"]
+  schedule:
+    - cron: "38 2 * * 3"
+
+permissions:
+  contents: read
+
+jobs:
+  security-scan-master:
+    permissions:
+      contents: read # for actions/checkout to fetch code
+      security-events: write # for github/codeql-action/upload-sarif to upload SARIF results
+      actions: read # only required for a private repository by github/codeql-action/upload-sarif to get the Action run status
+    name: Security scan master
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        # https://github.com/actions/checkout/releases/tag/v6.0.2
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+
+      - name: Prepare image name
+        id: repo
+        run: echo "REPO=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
+      - name: Run Trivy vulnerability scanner
+        # https://github.com/aquasecurity/trivy-action/releases/tag/v0.36.0
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          image-ref: "docker.io/${{ steps.repo.outputs.REPO }}:latest"
+          format: "template"
+          template: "@/contrib/sarif.tpl"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH"
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        # https://github.com/github/codeql-action/releases/tag/v4.35.5
+        uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba
+        with:
+          sarif_file: "trivy-results.sarif"
