@@ -105,7 +105,7 @@ services:
           memory: 100M
     healthcheck:
       # Will test if port is still open AND log file was not vanished by host machine log rotate
-      test: wget -v localhost$$SSHD_BIND --no-verbose --tries=1 --spider && test -s /var/log/ssh-auth-logger.log || exit 1
+      test: pgrep ssh-auth-logger && test -s /var/log/ssh-auth-logger.log || exit 1
       interval: 5m00s
       timeout: 5s
       retries: 2
