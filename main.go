@@ -21,6 +21,8 @@ import (
 
 const appName = "ssh-auth-logger"
 
+var version string
+
 var telnetBind string
 
 var telnetLogClearPassword bool
@@ -67,6 +69,9 @@ type serverProfile struct {
 	ServerVersion string
 	LoginBanner   string
 	HostKeyType   string // "rsa" or "ed25519"
+    Kex           []string
+    Ciphers       []string
+    Macs          []string
 }
 
 // Telnet handler
@@ -115,8 +120,8 @@ func handleTelnetConnection(conn net.Conn) {
 	limitedConn.Write([]byte("Password: "))
 	password, _ := readLine(limitedConn)
 
-	var loggedPassword any = password
 	// This will show the password in cleartext if telnetLogClearPassword is true, otherwise it will log the base64 encoded if telnetLogClearPassword is false
+	var loggedPassword any
 	if telnetLogClearPassword {
 		loggedPassword = string(password)
 	} else {
@@ -319,31 +324,164 @@ var serverProfiles = []serverProfile{
 		ServerVersion: "SSH-2.0-OpenSSH_7.4",
 		LoginBanner:   "CentOS Linux 7 (Core)\n\nAll connections are monitored.\n",
 		HostKeyType:   "rsa",
+
+		Kex: []string{
+			"curve25519-sha256@libssh.org",
+			"curve25519-sha256",
+			"diffie-hellman-group14-sha256",
+			"diffie-hellman-group14-sha1",
+		},
+
+		Ciphers: []string{
+			"aes128-ctr",
+			"aes192-ctr",
+			"aes256-ctr",
+			"aes128-gcm@openssh.com",
+			"aes256-gcm@openssh.com",
+			"chacha20-poly1305@openssh.com",
+		},
+
+		Macs: []string{
+			"hmac-sha2-256-etm@openssh.com",
+			"hmac-sha2-512-etm@openssh.com",
+			"hmac-sha2-256",
+			"hmac-sha2-512",
+		},
 	},
+
 	{
 		ServerVersion: "SSH-2.0-OpenSSH_7.9p1 Debian-10",
 		LoginBanner:   "Debian GNU/Linux 10\n\nAuthorized users only.\n",
 		HostKeyType:   "rsa",
+
+		Kex: []string{
+			"curve25519-sha256",
+			"curve25519-sha256@libssh.org",
+			"diffie-hellman-group16-sha512",
+			"diffie-hellman-group14-sha256",
+		},
+
+		Ciphers: []string{
+			"chacha20-poly1305@openssh.com",
+			"aes128-gcm@openssh.com",
+			"aes256-gcm@openssh.com",
+			"aes128-ctr",
+			"aes192-ctr",
+			"aes256-ctr",
+		},
+
+		Macs: []string{
+			"hmac-sha2-256-etm@openssh.com",
+			"hmac-sha2-512-etm@openssh.com",
+			"hmac-sha2-256",
+			"hmac-sha2-512",
+		},
 	},
+
 	{
 		ServerVersion: "SSH-2.0-OpenSSH_8.2p1 Ubuntu-4ubuntu0.5",
 		LoginBanner:   "Ubuntu 20.04.6 LTS\n\nUnauthorized access prohibited.\n",
 		HostKeyType:   "ed25519",
+
+		Kex: []string{
+			"curve25519-sha256",
+			"curve25519-sha256@libssh.org",
+			"diffie-hellman-group16-sha512",
+			"diffie-hellman-group14-sha256",
+		},
+
+		Ciphers: []string{
+			"chacha20-poly1305@openssh.com",
+			"aes128-gcm@openssh.com",
+			"aes256-gcm@openssh.com",
+			"aes128-ctr",
+			"aes192-ctr",
+			"aes256-ctr",
+		},
+
+		Macs: []string{
+			"hmac-sha2-256-etm@openssh.com",
+			"hmac-sha2-512-etm@openssh.com",
+			"hmac-sha2-256",
+			"hmac-sha2-512",
+		},
 	},
+
 	{
 		ServerVersion: "SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13.14",
-		LoginBanner:   "Ubuntu 24.04.6 LTS\n\nUnauthorized access prohibited.\n",
+		LoginBanner:   "Ubuntu 24.04.1 LTS\n\nUnauthorized access prohibited.\n",
 		HostKeyType:   "ed25519",
+
+		Kex: []string{
+			"curve25519-sha256",
+			"curve25519-sha256@libssh.org",
+			"diffie-hellman-group16-sha512",
+		},
+
+		Ciphers: []string{
+			"chacha20-poly1305@openssh.com",
+			"aes256-gcm@openssh.com",
+			"aes128-gcm@openssh.com",
+			"aes256-ctr",
+			"aes128-ctr",
+		},
+
+		Macs: []string{
+			"hmac-sha2-512-etm@openssh.com",
+			"hmac-sha2-256-etm@openssh.com",
+		},
 	},
+
 	{
 		ServerVersion: "SSH-2.0-OpenSSH_8.4",
 		LoginBanner:   "Debian GNU/Linux 11\n\nAuthorized users only.\n",
 		HostKeyType:   "ed25519",
+
+		Kex: []string{
+			"curve25519-sha256",
+			"curve25519-sha256@libssh.org",
+			"diffie-hellman-group16-sha512",
+			"diffie-hellman-group14-sha256",
+		},
+
+		Ciphers: []string{
+			"chacha20-poly1305@openssh.com",
+			"aes128-gcm@openssh.com",
+			"aes256-gcm@openssh.com",
+			"aes128-ctr",
+			"aes256-ctr",
+		},
+
+		Macs: []string{
+			"hmac-sha2-256-etm@openssh.com",
+			"hmac-sha2-512-etm@openssh.com",
+			"hmac-sha2-256",
+			"hmac-sha2-512",
+		},
 	},
+
 	{
 		ServerVersion: "SSH-2.0-dropbear_2019.78",
 		LoginBanner:   "Welcome to Dropbear SSH Server\n\nUnauthorized access is prohibited.\n",
 		HostKeyType:   "rsa",
+
+		Kex: []string{
+			"curve25519-sha256",
+			"diffie-hellman-group14-sha256",
+			"diffie-hellman-group14-sha1",
+		},
+
+		Ciphers: []string{
+			"aes128-ctr",
+			"aes256-ctr",
+			"aes128-cbc",
+			"3des-cbc",
+		},
+
+		Macs: []string{
+			"hmac-sha2-256",
+			"hmac-sha1",
+		},
 	},
 }
 
@@ -361,6 +499,8 @@ func makeSSHConfig(conn net.Conn) ssh.ServerConfig {
 //	profile := getServerProfile(host)
 	// per‑IP profile
 //	profile := getServerProfile(conn.RemoteAddr().String())
+
+	var actualHostKeyType string
 	// Determine the key for profile lookup
 	var profileKey string
 	if profileScope == "remote_ip" {
@@ -374,21 +514,15 @@ func makeSSHConfig(conn net.Conn) ssh.ServerConfig {
 	}
 
 	profile := getServerProfile(profileKey)
-	// Generate primary host key signer
-	signer, err := getHostKeySigner(profileKey, profile.HostKeyType)
-	if err != nil {
-		logrus.Panic(err)
-	}
-
-	// Capture the actual host key type
-	actualHostKeyType := signer.PublicKey().Type()
-
+	
 	config := ssh.ServerConfig{
+		NoClientAuth: false,
+
 		PasswordCallback: func(conn ssh.ConnMetadata, password []byte) (*ssh.Permissions, error) {
 			state.attempts++
 
 			base := time.Duration(200*state.attempts) * time.Millisecond
-			jitter := time.Duration(rand.Intn(400)) * time.Millisecond
+			jitter := time.Duration(rand.Intn(700)) * time.Millisecond
 			time.Sleep(base + jitter)
 
 			var loggedPassword any = password
@@ -425,6 +559,11 @@ func makeSSHConfig(conn net.Conn) ssh.ServerConfig {
 
 		ServerVersion: profile.ServerVersion,
 		MaxAuthTries:  maxAuthTries + rand.Intn(5),
+		Config: ssh.Config{
+			KeyExchanges: profile.Kex,
+			Ciphers:      profile.Ciphers,
+			MACs:         profile.Macs,
+		},
 	}
 
 	// 🔐 Banner only if enabled
@@ -435,19 +574,57 @@ func makeSSHConfig(conn net.Conn) ssh.ServerConfig {
 		}
 	}
 
-	config.AddHostKey(signer)
+	// Generate host keys with OpenSSH-like ordering
+	var signers []ssh.Signer
 
-	// Compatibility: add RSA fallback if primary is ED25519
-	if profile.HostKeyType == "ed25519" {
+	// Generate primary host key signer
+	primarySigner, err := getHostKeySigner(profileKey, profile.HostKeyType)
+	if err != nil {
+		logrus.Panic(err)
+	}
+
+	primaryType := primarySigner.PublicKey().Type()
+
+	// ED25519 first if available
+	if primaryType == "ssh-ed25519" {
+		signers = append(signers, primarySigner)
+
 		if rsaSigner, err := getHostKeySigner(profileKey, "rsa"); err == nil {
-			config.AddHostKey(rsaSigner)
+			signers = append(signers, rsaSigner)
+		}
+	} else {
+		// RSA primary
+		signers = append(signers, primarySigner)
+
+		if edSigner, err := getHostKeySigner(profileKey, "ed25519"); err == nil {
+			signers = append(signers, edSigner)
 		}
 	}
+
+	// Add keys to config in correct order
+	for _, s := range signers {
+		config.AddHostKey(s)
+	}
+
+	// capture primary type for logging
+	actualHostKeyType = primaryType
 
 	return config
 }
 
 func handleConnection(conn net.Conn, config *ssh.ServerConfig) {
+
+	// Random early disconnect (~10%)
+	if rand.Intn(10) == 0 {
+		logger.WithFields(connLogParameters(conn)).
+			Info("Connection dropped (simulated network issue)")
+		conn.Close()
+		return
+	}
+
+	// Simulate OpenSSH banner timing
+	time.Sleep(time.Duration(20+rand.Intn(120)) * time.Millisecond)
+
 	_, _, _, err := ssh.NewServerConn(conn, config)
 	if err == nil {
 		// This should never happen because auth never succeeds
@@ -513,6 +690,8 @@ func (f *FilteredJSONFormatter) Format(entry *logrus.Entry) ([]byte, error) {
 func init() {
 	logrus.SetFormatter(&logrus.JSONFormatter{})
 
+	version = getEnvWithDefault("VERSION", "dev")
+
 	telnetBind = getEnvWithDefault("TELNET_BIND", ":23")
 
 	sshd_bind = getEnvWithDefault("SSHD_BIND", ":22")
@@ -554,6 +733,7 @@ func init() {
 
 	// Show Configuration on Startup
 	logrus.WithFields(logrus.Fields{
+		"Version":                   version,
 		"SSHD_BIND":                 sshd_bind,
 		"SSHD_KEY_KEY":              sshd_key_key,
 		"SSHD_RATE":                 rate,
