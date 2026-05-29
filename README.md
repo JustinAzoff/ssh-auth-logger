@@ -12,7 +12,7 @@ ssh-auth-logger logs all authentication attempts as json making it easy to consu
 
 ssh-auth-logger uses HMAC to hash the destination IP address and a key in order to generate a consistently "random" key for every responding IP address.  This means you can run ssh-auth-logger on a /16 and every ip address will appear with a different host key. Random sshd version reporting as well.
 
-## Example log entry
+### Example log entry
 
 This is normally logged on one line
 
@@ -56,7 +56,7 @@ sudo setcap cap_net_bind_service=+ep ~/go/bin/ssh-auth-logger
 Bind to port 2222 in a host machine
 
 ```shell
-docker run -t -i --rm  -p 2222:22 justinazoff/ssh-auth-logger
+docker run -t -i --rm  -p 2222:2222 justinazoff/ssh-auth-logger
 ```
 
 Docker compose example:
@@ -105,7 +105,7 @@ services:
           memory: 100M
     healthcheck:
       # Will test if port is still open AND log file was not vanished by host machine log rotate
-      test: wget -v localhost$$SSHD_BIND --no-verbose --tries=1 --spider && test -s /var/log/ssh-auth-logger.log || exit 1
+      test: pgrep ssh-auth-logger && test -s /var/log/ssh-auth-logger.log || exit 1
       interval: 5m00s
       timeout: 5s
       retries: 2
@@ -114,4 +114,58 @@ services:
       driver: json-file
       options:
           max-size: 10m
+```
+
+## fail2ban configuration
+
+To configure [fail2ban](https://github.com/fail2ban/fail2ban) you have to create a filter:
+
+```shell
+sudo nano /etc/fail2ban/filter.d/ssh-auth-logger.local
+```
+
+with following content:
+
+```shell
+[Definition]
+_daemon = ssh-auth-logger
+
+# Match JSON log line with a "time", "msg" fields and a "src" IP
+failregex = ^.*"msg":"Request with (password|key)".*"src":"<HOST>".*$
+            ^.*"msg":"Telnet login attempt".*"src":"<HOST>".*$
+
+datepattern = %%Y-%%m-%%dT%%H:%%M:%%S(?:Z|%%z)
+
+ignoreregex =
+```
+
+The you have to update your `jail.local`:
+
+```shell
+sudo nano /etc/fail2ban/jail.local
+```
+
+with following config:
+
+```shell
+[ssh-auth-honeypot]
+enabled = true
+filter = ssh-auth-logger
+action = iptables-allports
+         # Additonally you can setup abuseipdb reporting as per https://github.com/fail2ban/fail2ban/blob/master/config/action.d/abuseipdb.conf
+         #abuseipdb[abuseipdb_category="18,22"]
+# Docker mount log to the localsystem
+logpath = /var/docker/ssh-auth-logger/log/ssh-auth-logger.log
+# maxretry should be equal or more than in a SSHD_MAX_AUTH_TRIES
+maxretry = 6
+# For very slow attacker that tries 3 passwords per day
+findtime = 1d
+# Ban time can be anything you like
+bantime = 1d
+```
+
+After that you have to reload your fail2ban with command:
+
+```shell
+sudo fail2ban-client reload
 ```
